@@ -1,0 +1,559 @@
+openapi: 3.1.0
+info:
+  title: Integración Continua Multi-Equipo - API de Orquestación
+  description: |
+    API para orquestar el flujo de integración entre equipos de desarrollo, operaciones y seguridad.
+    Incluye endpoints para manejo de pipelines, validación de seguridad, métricas de observabilidad
+    y trazabilidad de transacciones.
+  version: 1.0.0
+  contact:
+    name: Equipo de Integración SOA
+    email: integracion@empresa.com
+  license:
+    name: Propietario
+    url: https://empresa.com/licencias
+servers:
+  - url: https://api.integracion.empresa.com/v1
+    description: Producción
+  - url: https://sandbox.api.integracion.empresa.com/v1
+    description: Sandbox
+paths:
+  /pipelines:
+    post:
+      tags: [Pipeline]
+      summary: Iniciar un nuevo pipeline de integración
+      description: |
+        Inicia un pipeline CI/CD para un conjunto de cambios, validando requisitos de seguridad,
+        calidad y trazabilidad antes de proceder.
+      operationId: iniciarPipeline
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PipelineRequest"
+            examples:
+              ejemploPipeline:
+                value:
+                  idCambio: "chg-12345"
+                  equipo: "desarrollo"
+                  repositorio: "https://git.empresa.com/proyecto-core"
+                  rama: "feature/nueva-funcionalidad"
+                  commit: "a1b2c3d4e5f6"
+                  dependencias:
+                    - "servicio-autenticacion"
+                    - "servicio-pagos"
+      responses:
+        "201":
+          description: Pipeline iniciado exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PipelineResponse"
+              examples:
+                exito:
+                  value:
+                    idPipeline: "pipeline-67890"
+                    estado: "en-progreso"
+                    etapas:
+                      - nombre: "validacion-seguridad"
+                        estado: "pendiente"
+                      - nombre: "compilacion"
+                        estado: "pendiente"
+        "400":
+          description: Solicitud inválida
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                errorValidacion:
+                  value:
+                    codigo: "VALIDACION_FALLIDA"
+                    mensaje: "El repositorio no cumple con las políticas de seguridad"
+                    detalles:
+                      - campo: "repositorio"
+                        error: "No se encontró el archivo SECURITY.md"
+        "403":
+          description: No autorizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                errorAutenticacion:
+                  value:
+                    codigo: "NO_AUTORIZADO"
+                    mensaje: "El token JWT no tiene permisos para iniciar pipelines"
+        "500":
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                errorInterno:
+                  value:
+                    codigo: "ERROR_INTERNO"
+                    mensaje: "Fallo al iniciar el pipeline"
+                    detalles:
+                      - "Error de conexión con GitLab CI"
+    get:
+      tags: [Pipeline]
+      summary: Listar pipelines recientes
+      description: |
+        Devuelve una lista de pipelines iniciados en las últimas 24 horas, con filtros opcionales
+        por equipo, estado o repositorio.
+      operationId: listarPipelines
+      parameters:
+        - name: equipo
+          in: query
+          description: Filtrar por equipo (desarrollo, operaciones, seguridad)
+          required: false
+          schema:
+            type: string
+            enum: ["desarrollo", "operaciones", "seguridad"]
+        - name: estado
+          in: query
+          description: Filtrar por estado del pipeline
+          required: false
+          schema:
+            type: string
+            enum: ["pendiente", "en-progreso", "exitoso", "fallido"]
+        - name: repositorio
+          in: query
+          description: Filtrar por URL del repositorio
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Lista de pipelines
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PipelineResponse"
+              examples:
+                listaPipelines:
+                  value:
+                    - idPipeline: "pipeline-67890"
+                      idCambio: "chg-12345"
+                      equipo: "desarrollo"
+                      repositorio: "https://git.empresa.com/proyecto-core"
+                      estado: "en-progreso"
+                      etapas:
+                        - nombre: "validacion-seguridad"
+                          estado: "completado"
+                        - nombre: "compilacion"
+                          estado: "en-progreso"
+                    - idPipeline: "pipeline-67891"
+                      idCambio: "chg-12346"
+                      equipo: "operaciones"
+                      repositorio: "https://git.empresa.com/infra-estructura"
+                      estado: "fallido"
+                      etapas:
+                        - nombre: "validacion-seguridad"
+                          estado: "completado"
+                        - nombre: "despliegue"
+                          estado: "fallido"
+        "400":
+          description: Parámetros de consulta inválidos
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /pipelines/{idPipeline}:
+    get:
+      tags: [Pipeline]
+      summary: Obtener detalles de un pipeline
+      description: |
+        Devuelve el estado detallado de un pipeline específico, incluyendo métricas de tiempo
+        de ejecución y logs de cada etapa.
+      operationId: obtenerPipeline
+      parameters:
+        - name: idPipeline
+          in: path
+          description: ID del pipeline
+          required: true
+          schema:
+            type: string
+            pattern: "^pipeline-[0-9]{5}$"
+      responses:
+        "200":
+          description: Detalles del pipeline
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PipelineDetalleResponse"
+              examples:
+                detallePipeline:
+                  value:
+                    idPipeline: "pipeline-67890"
+                    idCambio: "chg-12345"
+                    equipo: "desarrollo"
+                    repositorio: "https://git.empresa.com/proyecto-core"
+                    estado: "en-progreso"
+                    etapas:
+                      - nombre: "validacion-seguridad"
+                        estado: "completado"
+                        tiempoEjecucion: 120
+                        logs:
+                          - "Iniciando validación de seguridad"
+                          - "Verificando políticas de branch"
+                          - "Validación completada exitosamente"
+                      - nombre: "compilacion"
+                        estado: "en-progreso"
+                        tiempoEjecucion: 45
+                        logs:
+                          - "Iniciando compilación"
+                          - "Ejecutando pruebas unitarias"
+                    x-devops:
+                      observabilidad:
+                        metricas:
+                          - nombre: "pipeline_tiempo_ejecucion"
+                            tipo: "histograma"
+                            etiquetas: ["equipo", "repositorio"]
+                          - nombre: "pipeline_fallos"
+                            tipo: "contador"
+                            etiquetas: ["equipo", "etapa"]                      ci_cd:
+                        etapas:
+                          - nombre: "validacion-seguridad"
+                            herramienta: "OWASP ZAP"
+                            paso: "validar-seguridad"
+                          - nombre: "compilacion"
+                            herramienta: "GitLab CI"
+                            paso: "compilar"
+                          - nombre: "despliegue"
+                            herramienta: "GitLab CI"
+                            paso: "desplegar"
+        "404":
+          description: Pipeline no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                noEncontrado:
+                  value:
+                    codigo: "PIPELINE_NO_ENCONTRADO"
+                    mensaje: "El pipeline con ID pipeline-67890 no existe"
+        "500":
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /transacciones/{idTransaccion}/trazabilidad:
+    get:
+      tags: [Trazabilidad]
+      summary: Obtener trazabilidad de una transacción
+      description: |
+        Devuelve el historial completo de una transacción, incluyendo todos los sistemas
+        y equipos involucrados en su procesamiento.
+      operationId: obtenerTrazabilidadTransaccion
+      parameters:
+        - name: idTransaccion
+          in: path
+          description: ID de la transacción
+          required: true
+          schema:
+            type: string
+            pattern: "^tx-[0-9]{10}$"
+      responses:
+        "200":
+          description: Trazabilidad de la transacción
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TrazabilidadResponse"
+              examples:
+                trazabilidad:
+                  value:
+                    idTransaccion: "tx-1234567890"
+                    origen:
+                      sistema: "servicio-pagos"
+                      equipo: "desarrollo"
+                      timestamp: "2023-11-15T10:00:00Z"
+                    eventos:
+                      - sistema: "servicio-autenticacion"
+                        equipo: "seguridad"
+                        accion: "validar-token"
+                        timestamp: "2023-11-15T10:00:01Z"
+                        detalle: "Token JWT validado exitosamente"
+                      - sistema: "servicio-pagos"
+                        equipo: "desarrollo"
+                        accion: "procesar-pago"
+                        timestamp: "2023-11-15T10:00:05Z"
+                        detalle: "Pago procesado por $150.00"
+                      - sistema: "sistema-riesgos"
+                        equipo: "operaciones"
+                        accion: "evaluar-riesgo"
+                        timestamp: "2023-11-15T10:00:10Z"
+                        detalle: "Riesgo aprobado"
+                    destino:
+                      sistema: "base-datos-transacciones"
+                      equipo: "operaciones"
+                      timestamp: "2023-11-15T10:00:15Z"
+        "404":
+          description: Transacción no encontrada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                noEncontrada:
+                  value:
+                    codigo: "TRANSACCION_NO_ENCONTRADA"
+                    mensaje: "La transacción con ID tx-1234567890 no existe"
+        "500":
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+components:
+  schemas:
+    PipelineRequest:
+      type: object
+      required:
+        - idCambio
+        - equipo
+        - repositorio
+        - rama
+        - commit
+      properties:
+        idCambio:
+          type: string
+          description: ID del cambio en el sistema de gestión de cambios
+          pattern: "^chg-[0-9]{5}$"
+          example: "chg-12345"
+        equipo:
+          type: string
+          description: Equipo responsable del cambio
+          enum: ["desarrollo", "operaciones", "seguridad"]
+          example: "desarrollo"
+        repositorio:
+          type: string
+          description: URL del repositorio Git
+          format: uri
+          example: "https://git.empresa.com/proyecto-core"
+        rama:
+          type: string
+          description: Rama del repositorio
+          example: "feature/nueva-funcionalidad"
+        commit:
+          type: string
+          description: Hash del commit
+          pattern: "^[a-f0-9]{12}$"
+          example: "a1b2c3d4e5f6"
+        dependencias:
+          type: array
+          description: Servicios o sistemas dependientes
+          items:
+            type: string
+            example: "servicio-autenticacion"
+    PipelineResponse:
+      type: object
+      required:
+        - idPipeline
+        - idCambio
+        - equipo
+        - repositorio
+        - estado
+        - etapas
+      properties:
+        idPipeline:
+          type: string
+          description: ID del pipeline generado
+          pattern: "^pipeline-[0-9]{5}$"
+          example: "pipeline-67890"
+        idCambio:
+          $ref: "#/components/schemas/PipelineRequest/properties/idCambio"
+        equipo:
+          $ref: "#/components/schemas/PipelineRequest/properties/equipo"
+        repositorio:
+          $ref: "#/components/schemas/PipelineRequest/properties/repositorio"
+        estado:
+          type: string
+          description: Estado actual del pipeline
+          enum: ["pendiente", "en-progreso", "exitoso", "fallido"]
+          example: "en-progreso"
+        etapas:
+          type: array
+          description: Lista de etapas del pipeline con su estado
+          items:
+            type: object
+            required:
+              - nombre
+              - estado
+            properties:
+              nombre:
+                type: string
+                description: Nombre de la etapa
+                example: "validacion-seguridad"
+              estado:
+                type: string
+                description: Estado de la etapa
+                enum: ["pendiente", "en-progreso", "completado", "fallido"]
+                example: "completado"
+    PipelineDetalleResponse:
+      allOf:
+        - $ref: "#/components/schemas/PipelineResponse"
+        - type: object
+          required:
+            - etapas
+          properties:
+            etapas:
+              type: array
+              items:
+                type: object
+                required:
+                  - nombre
+                  - estado
+                  - tiempoEjecucion
+                  - logs
+                properties:
+                  nombre:
+                    $ref: "#/components/schemas/PipelineResponse/properties/etapas/items/properties/nombre"
+                  estado:
+                    $ref: "#/components/schemas/PipelineResponse/properties/etapas/items/properties/estado"
+                  tiempoEjecucion:
+                    type: integer
+                    description: Tiempo de ejecución en segundos
+                    example: 120
+                  logs:
+                    type: array
+                    description: Logs de la etapa
+                    items:
+                      type: string
+                      example: "Iniciando validación de seguridad"
+    TrazabilidadResponse:
+      type: object
+      required:
+        - idTransaccion
+        - origen
+        - eventos
+        - destino
+      properties:
+        idTransaccion:
+          type: string
+          description: ID de la transacción
+          pattern: "^tx-[0-9]{10}$"
+          example: "tx-1234567890"
+        origen:
+          type: object
+          description: Sistema y equipo de origen
+          required:
+            - sistema
+            - equipo
+            - timestamp
+          properties:
+            sistema:
+              type: string
+              description: Nombre del sistema origen
+              example: "servicio-pagos"
+            equipo:
+              type: string
+              description: Equipo responsable del sistema origen
+              enum: ["desarrollo", "operaciones", "seguridad"]
+              example: "desarrollo"
+            timestamp:
+              type: string
+              description: Fecha y hora del evento origen
+              format: date-time
+              example: "2023-11-15T10:00:00Z"
+        eventos:
+          type: array
+          description: Lista de eventos en el procesamiento de la transacción
+          items:
+            type: object
+            required:
+              - sistema
+              - equipo
+              - accion
+              - timestamp
+              - detalle
+            properties:
+              sistema:
+                type: string
+                description: Nombre del sistema que procesó el evento
+                example: "servicio-autenticacion"
+              equipo:
+                type: string
+                description: Equipo responsable del sistema
+                enum: ["desarrollo", "operaciones", "seguridad"]
+                example: "seguridad"
+              accion:
+                type: string
+                description: Acción realizada
+                example: "validar-token"
+              timestamp:
+                type: string
+                description: Fecha y hora del evento
+                format: date-time
+                example: "2023-11-15T10:00:01Z"
+              detalle:
+                type: string
+                description: Detalle del evento
+                example: "Token JWT validado exitosamente"
+        destino:
+          type: object
+          description: Sistema y equipo de destino
+          required:
+            - sistema
+            - equipo
+            - timestamp
+          properties:
+            sistema:
+              type: string
+              description: Nombre del sistema destino
+              example: "base-datos-transacciones"
+            equipo:
+              type: string
+              description: Equipo responsable del sistema destino
+              enum: ["desarrollo", "operaciones", "seguridad"]
+              example: "operaciones"
+            timestamp:
+              type: string
+              description: Fecha y hora del evento destino
+              format: date-time
+              example: "2023-11-15T10:00:15Z"
+    ErrorResponse:
+      type: object
+      required:
+        - codigo
+        - mensaje
+      properties:
+        codigo:
+          type: string
+          description: Código de error
+          example: "VALIDACION_FALLIDA"
+        mensaje:
+          type: string
+          description: Mensaje descriptivo del error
+          example: "El repositorio no cumple con las políticas de seguridad"
+        detalles:
+          type: array
+          description: Detalles adicionales del error
+          items:
+            type: object
+            properties:
+              campo:
+                type: string
+                description: Campo asociado al error
+                example: "repositorio"
+              error:
+                type: string
+                description: Descripción del error
+                example: "No se encontró el archivo SECURITY.md"

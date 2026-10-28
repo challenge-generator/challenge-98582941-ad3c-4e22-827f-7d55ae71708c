@@ -1,0 +1,16 @@
+campo_origen,sistema_origen,tipo_origen,obligatorio_origen,campo_destino,sistema_destino,tipo_destino,obligatorio_destino,regla_transformacion,ejemplo_origen,ejemplo_destino
+idCambio,sistema-gestion,string,SÍ,idPipeline,api-integracion,string,SÍ,generarPrefijo:chg->pipeline-,chg-12345,pipeline-67890
+equipo,sistema-gestion,string,SÍ,equipo,api-integracion,string,SÍ,,desarrollo,desarrollo
+repositorio,sistema-gestion,string,SÍ,repositorio,api-integracion,string,SÍ,,https://git.empresa.com/proyecto-core,https://git.empresa.com/proyecto-core
+rama,sistema-gestion,string,SÍ,rama,api-integracion,string,SÍ,,feature/nueva-funcionalidad,feature/nueva-funcionalidad
+commit,sistema-gestion,string,SÍ,commit,api-integracion,string,SÍ,validarFormato:^[a-f0-9]{12}$,a1b2c3d4e5f6,a1b2c3d4e5f6
+dependencias,sistema-gestion,array,NO,dependencias,api-integracion,array,NO,,servicio-autenticacion;servicio-pagos,"[\"servicio-autenticacion\",\"servicio-pagos\"]"
+idTransaccion,servicio-pagos,string,SÍ,idTransaccion,api-integracion,string,SÍ,generarPrefijo:tx->tx-,1234567890,tx-1234567890
+sistema,servicio-autenticacion,string,SÍ,sistema,trazabilidad-api,string,SÍ,,servicio-autenticacion,servicio-autenticacion
+equipo,servicio-autenticacion,string,SÍ,equipo,trazabilidad-api,string,SÍ,,seguridad,seguridad
+accion,servicio-autenticacion,string,SÍ,accion,trazabilidad-api,string,SÍ,,validar-token,validar-token
+timestamp,servicio-autenticacion,datetime,SÍ,timestamp,trazabilidad-api,datetime,SÍ,formatoFecha:YYYY-MM-DDTHH:mm:ssZ,2023-11-15T10:00:01,2023-11-15T10:00:01Z
+detalle,servicio-autenticacion,string,NO,detalle,trazabilidad-api,string,NO,,Token JWT validado exitosamente,Token JWT validado exitosamente
+estado_pipeline,gitlab-ci,string,SÍ,estado,api-integracion,string,SÍ,mapearValores:created->pendiente;running->en-progreso;success->exitoso;failed->fallido,success,exitoso
+tiempo_ejecucion,prometheus,integer,NO,tiempoEjecucion,api-integracion,integer,NO,,120,120
+metricas_fallos,prometheus,integer,SÍ,pipeline_fallos,api-integracion,integer,SÍ,,5,5
